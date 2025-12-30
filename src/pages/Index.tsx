@@ -6,14 +6,18 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
 import AuthModal from '@/components/AuthModal';
+import ProfileModal from '@/components/ProfileModal';
 
 const Index = () => {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [ticketCount, setTicketCount] = useState(1);
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [user, setUser] = useState<{ id: number; phone: string; name: string | null } | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+
+  const ORDERS_API = 'https://functions.poehali.dev/dfffafd3-1730-44a3-a8d2-53828b391cc0';
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -47,8 +51,8 @@ const Index = () => {
     toast.success('Вы вышли из аккаунта');
   };
 
-  const handleBuyTicket = () => {
-    if (!user) {
+  const handleBuyTicket = async () => {
+    if (!user || !sessionToken) {
       setAuthModalOpen(true);
       toast.error('Войдите в аккаунт для покупки билета');
       return;
@@ -61,11 +65,38 @@ const Index = () => {
       toast.error('Выберите места в зале');
       return;
     }
-    toast.success(`Вы успешно купили ${ticketCount} ${ticketCount === 1 ? 'билет' : 'билета'}! Места: ${selectedSeats.join(', ')}. Ждите 1 часть в Январе 2026 года`, {
-      duration: 5000,
-    });
-    setSelectedSeats([]);
-    setTicketCount(1);
+
+    try {
+      const response = await fetch(ORDERS_API, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Token': sessionToken,
+        },
+        body: JSON.stringify({
+          movie_title: 'Мотоцикл в окне 1',
+          showtime: selectedTime,
+          show_date: '2026-01-01',
+          seats: selectedSeats,
+          ticket_count: ticketCount,
+          total_price: ticketCount * 500,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success(`Вы успешно купили ${ticketCount} ${ticketCount === 1 ? 'билет' : 'билета'}! Места: ${selectedSeats.join(', ')}. Ждите 1 часть в Январе 2026 года`, {
+          duration: 5000,
+        });
+        setSelectedSeats([]);
+        setTicketCount(1);
+      } else {
+        toast.error('Ошибка при оформлении заказа');
+      }
+    } catch (error) {
+      toast.error('Ошибка соединения с сервером');
+    }
   };
 
   const toggleSeat = (seatNumber: number) => {
@@ -117,14 +148,27 @@ const Index = () => {
                 <a href="#about" className="hover:text-primary transition-colors">О фильме</a>
               </div>
               {user ? (
-                <div className="flex items-center gap-3">
-                  <div className="hidden md:block text-right">
-                    <p className="text-sm font-semibold">{user.name || 'Гость'}</p>
-                    <p className="text-xs text-muted-foreground">{user.phone}</p>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setProfileModalOpen(true)}
+                    className="hidden md:flex"
+                  >
+                    <Icon name="User" size={16} className="mr-1" />
+                    {user.name || 'Гость'}
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setProfileModalOpen(true)}
+                    className="md:hidden"
+                  >
+                    <Icon name="User" size={20} />
+                  </Button>
                   <Button variant="outline" size="sm" onClick={handleLogout}>
-                    <Icon name="LogOut" size={16} className="mr-1" />
-                    Выйти
+                    <Icon name="LogOut" size={16} className="md:mr-1" />
+                    <span className="hidden md:inline">Выйти</span>
                   </Button>
                 </div>
               ) : (
@@ -466,6 +510,13 @@ const Index = () => {
         open={authModalOpen} 
         onOpenChange={setAuthModalOpen} 
         onAuthSuccess={handleAuthSuccess}
+      />
+
+      <ProfileModal
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
+        user={user}
+        sessionToken={sessionToken}
       />
     </div>
   );

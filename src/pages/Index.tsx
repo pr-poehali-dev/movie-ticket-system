@@ -1,15 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
+import AuthModal from '@/components/AuthModal';
 
 const Index = () => {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [ticketCount, setTicketCount] = useState(1);
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [user, setUser] = useState<{ id: number; phone: string; name: string | null } | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    const savedToken = localStorage.getItem('session_token');
+    if (savedUser && savedToken) {
+      setUser(JSON.parse(savedUser));
+      setSessionToken(savedToken);
+    }
+  }, []);
 
   const showtimes = [
     { time: '12:00', available: true },
@@ -19,7 +32,27 @@ const Index = () => {
     { time: '23:30', available: false },
   ];
 
+  const handleAuthSuccess = (userData: { id: number; phone: string; name: string | null }, token: string) => {
+    setUser(userData);
+    setSessionToken(token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('session_token', token);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setSessionToken(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('session_token');
+    toast.success('Вы вышли из аккаунта');
+  };
+
   const handleBuyTicket = () => {
+    if (!user) {
+      setAuthModalOpen(true);
+      toast.error('Войдите в аккаунт для покупки билета');
+      return;
+    }
     if (!selectedTime) {
       toast.error('Выберите время сеанса');
       return;
@@ -76,11 +109,30 @@ const Index = () => {
               <Icon name="Film" className="text-primary" size={28} />
               <span className="text-2xl font-bold">Кинотеатр Рубин</span>
             </div>
-            <div className="hidden md:flex gap-6">
-              <a href="#hero" className="hover:text-primary transition-colors">Главная</a>
-              <a href="#showtimes" className="hover:text-primary transition-colors">Расписание</a>
-              <a href="#tickets" className="hover:text-primary transition-colors">Билеты</a>
-              <a href="#about" className="hover:text-primary transition-colors">О фильме</a>
+            <div className="flex items-center gap-6">
+              <div className="hidden md:flex gap-6">
+                <a href="#hero" className="hover:text-primary transition-colors">Главная</a>
+                <a href="#showtimes" className="hover:text-primary transition-colors">Расписание</a>
+                <a href="#tickets" className="hover:text-primary transition-colors">Билеты</a>
+                <a href="#about" className="hover:text-primary transition-colors">О фильме</a>
+              </div>
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <div className="hidden md:block text-right">
+                    <p className="text-sm font-semibold">{user.name || 'Гость'}</p>
+                    <p className="text-xs text-muted-foreground">{user.phone}</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleLogout}>
+                    <Icon name="LogOut" size={16} className="mr-1" />
+                    Выйти
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="default" size="sm" onClick={() => setAuthModalOpen(true)} className="cinema-glow">
+                  <Icon name="LogIn" size={16} className="mr-1" />
+                  Вход
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -409,6 +461,12 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      <AuthModal 
+        open={authModalOpen} 
+        onOpenChange={setAuthModalOpen} 
+        onAuthSuccess={handleAuthSuccess}
+      />
     </div>
   );
 };

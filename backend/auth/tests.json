@@ -1,0 +1,20 @@
+{
+  "tests": [
+    {
+      "name": "Send verification code and verify it",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "send_code",
+        "phone": "+79991234567"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true,
+        "message": "string",
+        "dev_code": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

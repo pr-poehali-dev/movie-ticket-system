@@ -8,6 +8,8 @@ import Icon from '@/components/ui/icon';
 
 const Index = () => {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [ticketCount, setTicketCount] = useState(1);
+  const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
 
   const showtimes = [
     { time: '12:00', available: true },
@@ -22,10 +24,48 @@ const Index = () => {
       toast.error('Выберите время сеанса');
       return;
     }
-    toast.success('Вы успешно купили билет! Ждите 1 часть в Январе 2026 года', {
+    if (selectedSeats.length === 0) {
+      toast.error('Выберите места в зале');
+      return;
+    }
+    toast.success(`Вы успешно купили ${ticketCount} ${ticketCount === 1 ? 'билет' : 'билета'}! Места: ${selectedSeats.join(', ')}. Ждите 1 часть в Январе 2026 года`, {
       duration: 5000,
     });
+    setSelectedSeats([]);
+    setTicketCount(1);
   };
+
+  const toggleSeat = (seatNumber: number) => {
+    if (selectedSeats.includes(seatNumber)) {
+      setSelectedSeats(selectedSeats.filter(s => s !== seatNumber));
+      setTicketCount(Math.max(1, ticketCount - 1));
+    } else if (selectedSeats.length < ticketCount) {
+      setSelectedSeats([...selectedSeats, seatNumber]);
+    }
+  };
+
+  const generateSeats = () => {
+    const rows = ['A', 'B', 'C', 'D', 'E'];
+    const seatsPerRow = 10;
+    const seats = [];
+    const occupiedSeats = [3, 7, 15, 22, 28, 31, 44];
+    
+    let seatNumber = 1;
+    for (const row of rows) {
+      for (let i = 1; i <= seatsPerRow; i++) {
+        seats.push({
+          number: seatNumber,
+          row,
+          seat: i,
+          occupied: occupiedSeats.includes(seatNumber),
+        });
+        seatNumber++;
+      }
+    }
+    return seats;
+  };
+
+  const seats = generateSeats();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -131,35 +171,129 @@ const Index = () => {
               </div>
 
               {selectedTime && (
-                <div className="bg-muted/50 rounded-lg p-6 mb-8">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-muted-foreground">Фильм</span>
-                    <span className="font-semibold">Мотоцикл в окне 1</span>
+                <>
+                  <div className="mb-8">
+                    <label className="block text-sm font-medium mb-3">Количество билетов</label>
+                    <div className="flex items-center justify-center gap-4">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          const newCount = Math.max(1, ticketCount - 1);
+                          setTicketCount(newCount);
+                          if (selectedSeats.length > newCount) {
+                            setSelectedSeats(selectedSeats.slice(0, newCount));
+                          }
+                        }}
+                        disabled={ticketCount <= 1}
+                      >
+                        <Icon name="Minus" size={20} />
+                      </Button>
+                      <span className="text-3xl font-bold w-16 text-center">{ticketCount}</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setTicketCount(Math.min(6, ticketCount + 1))}
+                        disabled={ticketCount >= 6}
+                      >
+                        <Icon name="Plus" size={20} />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-muted-foreground">Время</span>
-                    <span className="font-semibold text-primary">{selectedTime}</span>
+
+                  <div className="mb-8">
+                    <label className="block text-sm font-medium mb-3 text-center">
+                      Выберите места ({selectedSeats.length}/{ticketCount})
+                    </label>
+                    <div className="bg-muted/30 rounded-lg p-6">
+                      <div className="flex justify-center mb-6">
+                        <div className="bg-gradient-to-b from-muted to-muted/50 px-12 py-2 rounded text-sm font-semibold">
+                          ЭКРАН
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        {['A', 'B', 'C', 'D', 'E'].map((row) => (
+                          <div key={row} className="flex items-center justify-center gap-2">
+                            <span className="text-xs font-bold w-6 text-muted-foreground">{row}</span>
+                            {seats
+                              .filter((s) => s.row === row)
+                              .map((seat) => (
+                                <button
+                                  key={seat.number}
+                                  onClick={() => !seat.occupied && toggleSeat(seat.number)}
+                                  disabled={seat.occupied || (selectedSeats.length >= ticketCount && !selectedSeats.includes(seat.number))}
+                                  className={`w-8 h-8 rounded-t-lg text-xs font-semibold transition-all ${
+                                    seat.occupied
+                                      ? 'bg-muted/50 cursor-not-allowed'
+                                      : selectedSeats.includes(seat.number)
+                                      ? 'bg-primary text-primary-foreground scale-110 cinema-glow'
+                                      : 'bg-card border border-border hover:bg-primary/20 hover:scale-105'
+                                  } disabled:opacity-30`}
+                                  title={`Место ${seat.number}`}
+                                >
+                                  {seat.seat}
+                                </button>
+                              ))}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-center gap-6 mt-6 text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-card border border-border rounded-t-lg" />
+                          <span>Свободно</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-primary rounded-t-lg" />
+                          <span>Выбрано</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-muted/50 rounded-t-lg" />
+                          <span>Занято</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-muted-foreground">Дата</span>
-                    <span className="font-semibold text-secondary">1 января 2026</span>
+
+                  <div className="bg-muted/50 rounded-lg p-6 mb-8">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-muted-foreground">Фильм</span>
+                      <span className="font-semibold">Мотоцикл в окне 1</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-muted-foreground">Время</span>
+                      <span className="font-semibold text-primary">{selectedTime}</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-muted-foreground">Дата</span>
+                      <span className="font-semibold text-secondary">1 января 2026</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-muted-foreground">Билеты</span>
+                      <span className="font-semibold">{ticketCount} × 500 ₽</span>
+                    </div>
+                    {selectedSeats.length > 0 && (
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="text-muted-foreground">Места</span>
+                        <span className="font-semibold">{selectedSeats.join(', ')}</span>
+                      </div>
+                    )}
+                    <Separator className="my-4" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-bold">Итого</span>
+                      <span className="text-2xl font-bold text-primary">{ticketCount * 500} ₽</span>
+                    </div>
                   </div>
-                  <Separator className="my-4" />
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold">Итого</span>
-                    <span className="text-2xl font-bold text-primary">500 ₽</span>
-                  </div>
-                </div>
+                </>
               )}
 
               <Button
                 size="lg"
                 className="w-full text-xl py-8 cinema-glow"
                 onClick={handleBuyTicket}
-                disabled={!selectedTime}
+                disabled={!selectedTime || selectedSeats.length === 0}
               >
                 <Icon name="ShoppingCart" className="mr-2" size={24} />
-                Купить билет
+                Купить {ticketCount === 1 ? 'билет' : `${ticketCount} билета`}
               </Button>
             </CardContent>
           </Card>
